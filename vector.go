@@ -1,7 +1,7 @@
 //go:build rp2040
 // +build rp2040
 
-package pixel32
+package main
 
 import (
 	"fmt"

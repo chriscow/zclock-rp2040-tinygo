@@ -1,7 +1,7 @@
 //go:build rp2040
 // +build rp2040
 
-package zeta
+package main
 
 import (
 	math "github.com/chewxy/math32"
