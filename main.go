@@ -40,7 +40,7 @@ func main() {
 }
 
 func run() error {
-	mcu, err := newMCU()
+	mcu, err := newMCU(DONT_SLEEP)
 	if err != nil {
 		return err
 	}
@@ -58,9 +58,6 @@ func run() error {
 	mi := t.index
 
 	var offset time.Duration
-
-	const LCD_SLEEP_ON = 0x10
-	const LCD_SLEEP_OFF = 0x11
 
 	for {
 
@@ -87,9 +84,6 @@ func run() error {
 		// 	continue
 		// }
 
-		mcu.lcd.Command(LCD_SLEEP_OFF)
-		mcu.lcd.EnableBacklight(true)
-
 		// if the time hasn't been set yet
 		// and the user pressed enter, get the time
 		if !timeSet && machine.Serial.Buffered() > 0 {
@@ -107,14 +101,27 @@ func run() error {
 			}
 		}
 
-		mcu.FillDisplay(colornames.Black)
-		spiral.calc(.5, im)
+		//
+		// Check for movement / sleep
+		//
+		if mcu.Sleeping() {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		} else {
+			min = minSinceMidnight(now)
+			t = timedata[min]
+			im = t.imaginary
+			mi = t.index
+		}
 
 		if now.Sub(everySec) > time.Second {
 			// fmt.Printf("bat(v): %.2f\r\n", mcu.Volts())
 
 			everySec = now
 		}
+
+		mcu.FillDisplay(colornames.Black)
+		spiral.calc(.5, im)
 
 		// Every minute, get the new imaginary value
 		if now.Sub(everyMin) > time.Minute {

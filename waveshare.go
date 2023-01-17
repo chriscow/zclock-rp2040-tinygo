@@ -4,6 +4,7 @@ import (
 	"errors"
 	"image/color"
 	"machine"
+	"time"
 
 	"github.com/chewxy/math32"
 	"golang.org/x/image/colornames"
@@ -24,6 +25,11 @@ const (
 	SPI1_SDO_PIN = machine.GPIO11 // Tx
 	// Default Serial In Bus 1 for SPI communications
 	SPI1_SDI_PIN = machine.GPIO11 //machine.GPIO12 // Rx
+
+	LCD_SLEEP_ON  = 0x10
+	LCD_SLEEP_OFF = 0x11
+
+	DONT_SLEEP time.Duration = 1<<63 - 1
 )
 
 // RP2040 MCU Board, With 1.28inch Round LCD, accelerometer and gyroscope Sensor
@@ -36,9 +42,13 @@ type waveshare struct {
 	buffer []color.RGBA
 
 	minVolts float32
+
+	sleepAfter          time.Duration
+	lastX, lastY, lastZ int32
+	lastMovement        time.Time
 }
 
-func newMCU() (*waveshare, error) {
+func newMCU(sleepAfter time.Duration) (*waveshare, error) {
 	spi := machine.SPI1
 	conf := machine.SPIConfig{
 		Frequency: 40 * machine.MHz,
@@ -86,12 +96,14 @@ func newMCU() (*waveshare, error) {
 	imud.Configure(imu.Config{})
 
 	return &waveshare{
-		spi:      spi,
-		lcd:      &lcd,
-		imu:      &imud,
-		adc:      adc,
-		buffer:   buffer,
-		minVolts: math32.MaxFloat32,
+		spi:          spi,
+		lcd:          &lcd,
+		imu:          &imud,
+		adc:          adc,
+		buffer:       buffer,
+		minVolts:     math32.MaxFloat32,
+		sleepAfter:   sleepAfter,
+		lastMovement: time.Now(),
 	}, nil
 }
 
@@ -138,9 +150,7 @@ func (d *waveshare) Volts() float32 {
 func (d *waveshare) DrawBattery() {
 	d.minVolts = math32.Min(d.minVolts, d.Volts())
 
-	volts := d.minVolts
-
-	if volts >= 4 {
+	if d.Volts() > 4 {
 		// TODO: draw lightning bolt indicating charging status
 		// fully charged or charging
 		d.minVolts = math32.MaxFloat32
@@ -174,4 +184,35 @@ func (d *waveshare) DrawBattery() {
 	} else {
 		tinydraw.FilledRectangle(d, 118, 226, 18, 8, colornames.Grey)
 	}
+}
+
+func (d *waveshare) Sleeping() bool {
+	if d.sleepAfter == DONT_SLEEP {
+		return false
+	}
+
+	// (milli gravity), which means that 1000 = 1g
+	x, y, z := d.imu.ReadAcceleration()
+	// fmt.Printf("z:%d,diff:%d\n", z, z-lastZ)
+
+	// wake up device if movement is beyond threshold
+	if math32.Abs(float32(x-d.lastX)) > 128 || math32.Abs(float32(y-d.lastY)) > 128 || math32.Abs(float32(z-d.lastZ)) > 128 {
+		// mcu.lcd.Command(LCD_SLEEP_OFF)
+		d.lcd.EnableBacklight(true)
+		d.lastMovement = time.Now()
+	}
+	d.lastX = x
+	d.lastY = y
+	d.lastZ = z
+
+	if time.Since(d.lastMovement) > d.sleepAfter {
+		d.lcd.Command(LCD_SLEEP_ON)
+		d.lcd.EnableBacklight(false)
+		return true
+	}
+
+	d.lcd.Command(LCD_SLEEP_OFF)
+	d.lcd.EnableBacklight(true)
+
+	return false
 }
