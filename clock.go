@@ -1,12 +1,70 @@
 package main
 
 import (
+	"fmt"
+	"machine"
+	"strconv"
+	"strings"
 	"time"
 )
 
 func minSinceMidnight(now time.Time) int {
 	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local) // % int64(time.Hour*24/time.Second)
 	return int(now.Sub(midnight)/time.Minute) % int(12*time.Hour/time.Minute)
+}
+
+func getUserTime() time.Time {
+
+	println("\r                     S T A H U R R I C A N E")
+	println("\r")
+	println("                            ####################,\r")
+	println("                       #############################\r")
+	println("                   ,#######################\r")
+	println("                  ############################\r")
+	println("                 ##############*###############\r")
+	println("                ###########           ###########\r")
+	println("               ##########              ##########\r")
+	println("               ##########               #########\r")
+	println("               /#########/             ##########\r")
+	println("                ###########          *###########\r")
+	println("                 ###############################\r")
+	println("                  ###########################\r")
+	println("                    #######################\r")
+	println("     ##################################\r")
+	println("             *################.\r\n\r")
+	println("\r")
+	println("=== ZETA CLOCK TIME CONFIG ===")
+	println("Enter the current time (HH:MM) and press enter:")
+
+	buffer := make([]byte, 0)
+
+	for {
+		if machine.Serial.Buffered() > 0 {
+			data, _ := machine.Serial.ReadByte()
+
+			if data == '\r' || data == '\n' {
+				break
+			}
+
+			buffer = append(buffer, data)
+			fmt.Println()
+		}
+	}
+
+	tokens := strings.Split(string(buffer), ":")
+	now := time.Now()
+	hour, err := strconv.Atoi(tokens[0])
+	if err != nil {
+		fmt.Println("\r\n\r\nInvalid hour value.", err)
+		return time.Unix(0, 0)
+	}
+	min, err := strconv.Atoi(tokens[1])
+	if err != nil {
+		fmt.Println("\r\n\r\nInvalid minute value.", err)
+		return time.Unix(0, 0)
+	}
+
+	return time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.Local)
 }
 
 var timedata = []struct {

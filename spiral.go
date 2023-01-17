@@ -1,6 +1,9 @@
 package main
 
 import (
+	"image/color"
+
+	"github.com/chewxy/math32"
 	math "github.com/chewxy/math32"
 	"golang.org/x/image/colornames"
 
@@ -51,7 +54,7 @@ func (s *spiral) calc(real, imag float32) {
 	}
 }
 
-func drawSpiral(lcd drivers.Displayer, s *spiral, mi int) {
+func (s *spiral) draw(lcd drivers.Displayer, mi int) {
 	max := math.Max(s.bounds.W(), s.bounds.H()) // is width or height bigger?
 	scale := float32(188.49 / max)              // pi / 4 * 240 keeps it out of the corners
 	mov := V(128, 128).Sub(s.bounds.Center().Scaled(float32(scale)))
@@ -78,35 +81,36 @@ func drawSpiral(lcd drivers.Displayer, s *spiral, mi int) {
 	}
 }
 
-func drawHands(lcd drivers.Displayer, minHand, hourHand Line) {
-	hl := hourHand.Len()
-	scale := 128 * .6 / hl
+func drawHand(lcd drivers.Displayer, hand Line, scale float32, color color.RGBA) {
+	sc := 128 * scale / hand.Len()
 	center := V(128, 128)
-	mat := IM.Scaled(ZV, scale) //win.Bounds().W())
-	mat = mat.Moved(center.Sub(hourHand.A.Scaled(scale)))
+	mat := IM.Scaled(ZV, sc) //win.Bounds().W())
+	mat = mat.Moved(center.Sub(hand.A.Scaled(sc)))
 
 	line := Line{
-		A: mat.Project(hourHand.A),
-		B: mat.Project(hourHand.B),
+		A: mat.Project(hand.A),
+		B: mat.Project(hand.B),
 	}
-	pt := V(line.A.X+2, line.A.Y+2)
+
+	pt := line.B.Sub(line.A).Rotated(-math32.Pi / 2).Unit().Scaled(5).Add(line.A)
+	pt2 := line.B.Sub(line.A).Rotated(math32.Pi / 2).Unit().Scaled(5).Add(line.A)
+
+	from := hand.A
+	to := hand.B.Sub(from)
+	angle := math32.Atan2(to.Y, to.X) * 57.2957795
+	if math32.Abs(angle) > 90 {
+		pt, pt2 = pt2, pt
+	}
+
+	// make the hand as a triangle. this takes the from-point of the hand and
+	// moves it out 5 pixels each way
+	tinydraw.FilledTriangle(lcd, int16(line.A.X), int16(line.A.Y),
+		int16(line.B.X), int16(line.B.Y), int16(pt.X), int16(pt.Y), color)
+
+	color.R = uint8(float32(color.R) * .75)
+	color.G = uint8(float32(color.G) * .75)
+	color.B = uint8(float32(color.B) * .75)
 
 	tinydraw.FilledTriangle(lcd, int16(line.A.X), int16(line.A.Y),
-		int16(line.B.X), int16(line.B.Y), int16(pt.X), int16(pt.Y), colornames.Red)
-
-	scale = 128 / minHand.Len() * .9
-	mat = IM.Scaled(ZV, scale) //win.Bounds().W())
-	mat = mat.Moved(center.Sub(minHand.B.Scaled(scale)))
-
-	line = Line{
-		A: mat.Project(minHand.A),
-		B: mat.Project(minHand.B),
-	}
-	pt = V(line.B.X+2, line.B.Y+2)
-	line.B.X -= 2
-	line.B.Y -= 2
-	// tinydraw.Line(lcd, int16(line.A.X), int16(line.A.Y), int16(line.B.X), int16(line.B.Y), colornames.Orange)
-	tinydraw.FilledTriangle(lcd, int16(line.A.X), int16(line.A.Y),
-		int16(line.B.X), int16(line.B.Y), int16(pt.X), int16(pt.Y), colornames.Orange)
-
+		int16(line.B.X), int16(line.B.Y), int16(pt2.X), int16(pt2.Y), color)
 }

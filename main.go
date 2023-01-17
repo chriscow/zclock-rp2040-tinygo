@@ -6,80 +6,48 @@ package main
 import (
 	"fmt"
 	"machine"
-	"strconv"
-	"strings"
 	"time"
 
 	"golang.org/x/image/colornames"
 )
 
-func getUserTime() time.Time {
+func main() {
+	// mcu, _ := newMCU()
 
-	println("\r                     S T A H U R R I C A N E")
-	println("\r")
-	println("                            ####################,\r")
-	println("                       #############################\r")
-	println("                   ,#######################\r")
-	println("                  ############################\r")
-	println("                 ##############*###############\r")
-	println("                ###########           ###########\r")
-	println("               ##########              ##########\r")
-	println("               ##########               #########\r")
-	println("               /#########/             ##########\r")
-	println("                ###########          *###########\r")
-	println("                 ###############################\r")
-	println("                  ###########################\r")
-	println("                    #######################\r")
-	println("     ##################################\r")
-	println("             *################.\r\n\r")
-	println("\r")
-	println("=== ZETA CLOCK TIME CONFIG ===")
-	println("Enter the current time (HH:MM) and press enter:")
+	// mcu.lcd.FillScreen(colornames.Black)
 
-	buffer := make([]byte, 0)
+	// tinydraw.Rectangle(mcu, 40, 40, 160, 160, colornames.White)
 
-	for {
-		if machine.Serial.Buffered() > 0 {
-			data, _ := machine.Serial.ReadByte()
+	// from := V(127, 127)
+	// to := V(60, 0).Rotated(math32.Pi / 6).Add(from)
+	// tinydraw.Line(mcu, int16(from.X), int16(from.Y), int16(to.X), int16(to.Y), colornames.White)
 
-			if data == '\r' || data == '\n' {
-				break
-			}
+	// temp := to.Sub(from).Normal().Add(from)
+	// tinydraw.Line(mcu, int16(from.X), int16(from.Y), int16(temp.X), int16(temp.Y), colornames.White)
 
-			buffer = append(buffer, data)
-			fmt.Println()
+	// mcu.Display()
+
+	// for {
+	// 	time.Sleep(time.Second)
+	// }
+
+	if err := run(); err != nil {
+		for {
+			fmt.Println("error calling newDisplay:", err)
+			time.Sleep(time.Second)
 		}
 	}
-
-	tokens := strings.Split(string(buffer), ":")
-	now := time.Now()
-	hour, err := strconv.Atoi(tokens[0])
-	if err != nil {
-		fmt.Println("\r\n\r\nInvalid hour value.", err)
-		return time.Unix(0, 0)
-	}
-	min, err := strconv.Atoi(tokens[1])
-	if err != nil {
-		fmt.Println("\r\n\r\nInvalid minute value.", err)
-		return time.Unix(0, 0)
-	}
-
-	return time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.Local)
 }
 
-func main() {
-	mcu, err := newDisplay()
+func run() error {
+	mcu, err := newMCU()
 	if err != nil {
-		for {
-			time.Sleep(3 * time.Second)
-			fmt.Println(err)
-		}
+		return err
 	}
 
-	machine.InitSerial()
-
 	spiral := &spiral{}
-	last := time.Unix(0, 0)
+	everyMin := time.Unix(0, 0)
+	everySec := time.Unix(0, 0)
 
 	var minHand, hourHand Line
 	now := time.Now()
@@ -91,9 +59,36 @@ func main() {
 
 	var offset time.Duration
 
+	const LCD_SLEEP_ON = 0x10
+	const LCD_SLEEP_OFF = 0x11
+
 	for {
 
 		now = time.Now().Add(offset)
+
+		// sleeper.update()
+		// sleeping := time.Since(sleeper.lastMovement) > 5*time.Minute
+		// deepsleep := time.Since(sleeper.lastMovement) > 15*time.Minute
+		// if sleeping {
+		// 	mcu.lcd.Command(LCD_SLEEP_ON) // LCD sleep
+		// 	mcu.lcd.EnableBacklight(false)
+
+		// 	if deepsleep {
+		// 		time.Sleep(2 * time.Second)
+		// 	} else {
+		// 		time.Sleep(time.Millisecond * 10)
+		// 	}
+
+		// 	min = minSinceMidnight(now)
+		// 	t = timedata[min]
+		// 	im = t.imaginary
+		// 	mi = t.index
+
+		// 	continue
+		// }
+
+		mcu.lcd.Command(LCD_SLEEP_OFF)
+		mcu.lcd.EnableBacklight(true)
 
 		// if the time hasn't been set yet
 		// and the user pressed enter, get the time
@@ -104,7 +99,7 @@ func main() {
 				if b == '\r' || b == '\n' {
 					offset = time.Until(getUserTime())
 					now = time.Now().Add(offset)
-					last = time.Unix(0, 0)
+					everyMin = time.Unix(0, 0)
 					timeSet = true
 					fmt.Println("time set to:", now, "\r")
 					break
@@ -115,8 +110,14 @@ func main() {
 		mcu.FillDisplay(colornames.Black)
 		spiral.calc(.5, im)
 
+		if now.Sub(everySec) > time.Second {
+			// fmt.Printf("bat(v): %.2f\r\n", mcu.Volts())
+
+			everySec = now
+		}
+
 		// Every minute, get the new imaginary value
-		if now.Sub(last) > time.Minute {
+		if now.Sub(everyMin) > time.Minute {
 
 			min = minSinceMidnight(now)
 			t = timedata[min]
@@ -124,17 +125,22 @@ func main() {
 			mi = t.index
 
 			spiral.calc(.5, im)
-			minHand.A = spiral.joints[mi]
-			minHand.B = spiral.joints[mi+1]
+			minHand.B = spiral.joints[mi]
+			minHand.A = spiral.joints[mi+1]
 			hourHand.A = spiral.joints[mi+1]
 			hourHand.B = spiral.joints[mi+2]
 
-			last = now
+			everyMin = now
 		}
-		drawSpiral(mcu, spiral, mi)
+
+		spiral.draw(mcu, mi)
+
 		if timeSet {
-			drawHands(mcu, minHand, hourHand)
+			drawHand(mcu, minHand, .9, colornames.Orange)
+			drawHand(mcu, hourHand, .6, colornames.Red)
 		}
+
+		mcu.DrawBattery()
 		mcu.Display()
 
 		im += .004
