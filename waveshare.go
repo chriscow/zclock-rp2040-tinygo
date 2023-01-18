@@ -147,10 +147,15 @@ func (d *waveshare) Volts() float32 {
 
 // DrawBattery displays the battery if the voltage has dropped below 3.6 volts
 // and changes to orange then red to represent charge status.
-func (d *waveshare) DrawBattery() {
+// The battery is always drawn in green when the voltage is above 4.1 volts indicating
+// fully charged. Otherwise, the battery will only be drawn if the battery voltage
+// is below the minVolts argument.
+//
+// If you want the battery always drawn, pass the battery maximum voltage.
+func (d *waveshare) DrawBattery(minVolts float32) {
 	d.minVolts = math32.Min(d.minVolts, d.Volts())
 
-	if d.Volts() > 4 {
+	if d.Volts() > 4.1 {
 		// TODO: draw lightning bolt indicating charging status
 		// fully charged or charging
 		d.minVolts = math32.MaxFloat32
@@ -160,29 +165,29 @@ func (d *waveshare) DrawBattery() {
 		return
 	}
 
-	// if d.minVolts < 4 {
-	// draw outline only when battery is below
+	if d.minVolts <= minVolts {
+		// draw outline only when battery is below
 
-	// TODO: parameterize battery position and size
-	// battery width: 20, height: 10
-	tinydraw.Rectangle(d, 117, 225, 20, 10, colornames.Grey)     // battery body
-	tinydraw.FilledRectangle(d, 137, 228, 3, 4, colornames.Grey) // positive terminal
-	// }
+		// TODO: parameterize battery position and size
+		// battery width: 20, height: 10
+		tinydraw.Rectangle(d, 117, 225, 20, 10, colornames.Grey)     // battery body
+		tinydraw.FilledRectangle(d, 137, 228, 3, 4, colornames.Grey) // positive terminal
 
-	if d.minVolts < 3.4 {
-		tinydraw.FilledRectangle(d, 118, 226, 8, 8, colornames.Red)
-	} else if d.minVolts < 3.5 {
-		tinydraw.FilledRectangle(d, 118, 226, 10, 8, colornames.Orange)
-	} else if d.minVolts < 3.6 {
-		tinydraw.FilledRectangle(d, 118, 226, 10, 8, colornames.Grey)
-	} else if d.minVolts < 3.7 {
-		tinydraw.FilledRectangle(d, 118, 226, 12, 8, colornames.Grey)
-	} else if d.minVolts < 3.8 {
-		tinydraw.FilledRectangle(d, 118, 226, 14, 8, colornames.Grey)
-	} else if d.minVolts < 3.9 {
-		tinydraw.FilledRectangle(d, 118, 226, 16, 8, colornames.Grey)
-	} else {
-		tinydraw.FilledRectangle(d, 118, 226, 18, 8, colornames.Grey)
+		if d.minVolts < 3.5 {
+			tinydraw.FilledRectangle(d, 118, 226, 8, 8, colornames.Red)
+		} else if d.minVolts < 3.6 {
+			tinydraw.FilledRectangle(d, 118, 226, 10, 8, colornames.Orange)
+		} else if d.minVolts < 3.7 {
+			tinydraw.FilledRectangle(d, 118, 226, 10, 8, colornames.Yellow)
+		} else if d.minVolts < 3.8 {
+			tinydraw.FilledRectangle(d, 118, 226, 12, 8, colornames.Grey)
+		} else if d.minVolts < 3.9 {
+			tinydraw.FilledRectangle(d, 118, 226, 14, 8, colornames.Grey)
+		} else if d.minVolts < 4 {
+			tinydraw.FilledRectangle(d, 118, 226, 16, 8, colornames.Grey)
+		} else {
+			tinydraw.FilledRectangle(d, 118, 226, 18, 8, colornames.Grey)
+		}
 	}
 }
 

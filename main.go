@@ -40,7 +40,7 @@ func main() {
 }
 
 func run() error {
-	mcu, err := newMCU(DONT_SLEEP)
+	mcu, err := newMCU(5 * time.Minute)
 	if err != nil {
 		return err
 	}
@@ -64,27 +64,6 @@ func run() error {
 
 		now = time.Now().Add(offset)
 
-		// sleeper.update()
-		// sleeping := time.Since(sleeper.lastMovement) > 5*time.Minute
-		// deepsleep := time.Since(sleeper.lastMovement) > 15*time.Minute
-		// if sleeping {
-		// 	mcu.lcd.Command(LCD_SLEEP_ON) // LCD sleep
-		// 	mcu.lcd.EnableBacklight(false)
-
-		// 	if deepsleep {
-		// 		time.Sleep(2 * time.Second)
-		// 	} else {
-		// 		time.Sleep(time.Millisecond * 10)
-		// 	}
-
-		// 	min = minSinceMidnight(now)
-		// 	t = timedata[min]
-		// 	im = t.imaginary
-		// 	mi = t.index
-
-		// 	continue
-		// }
-
 		// if the time hasn't been set yet
 		// and the user pressed enter, get the time
 		if !timeSet && machine.Serial.Buffered() > 0 {
@@ -102,6 +81,12 @@ func run() error {
 			}
 		}
 
+		if now.Sub(everySec) > time.Second {
+			fmt.Printf("bat(v):%.2f,sleeping:%v\r\n", mcu.Volts(), wasSleeping)
+
+			everySec = now
+		}
+
 		//
 		// Check for movement / sleep
 		//
@@ -115,12 +100,6 @@ func run() error {
 			t = timedata[min]
 			im = t.imaginary
 			mi = t.index
-		}
-
-		if now.Sub(everySec) > time.Second {
-			// fmt.Printf("bat(v): %.2f\r\n", mcu.Volts())
-
-			everySec = now
 		}
 
 		mcu.FillDisplay(colornames.Black)
@@ -150,7 +129,7 @@ func run() error {
 			drawHand(mcu, minHand, .9, colornames.Orange)
 		}
 
-		mcu.DrawBattery()
+		mcu.DrawBattery(3.8)
 		mcu.Display()
 
 		im += .004
