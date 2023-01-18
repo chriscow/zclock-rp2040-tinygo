@@ -24,9 +24,7 @@ func (s *spiral) calc(real, imag float32) {
 	s.bounds = Rect{}
 	s.numJoints = int(imag/math.Pi + 1)
 
-	if s.joints == nil || len(s.joints) < s.numJoints {
-		s.joints = make([]Vec, s.numJoints*2)
-	}
+	s.joints = make([]Vec, s.numJoints)
 
 	start := V(0, 0)
 	s.joints[0] = start
@@ -94,6 +92,7 @@ func drawHand(lcd drivers.Displayer, hand Line, scale float32, color color.RGBA)
 
 	pt := line.B.Sub(line.A).Rotated(-math32.Pi / 2).Unit().Scaled(5).Add(line.A)
 	pt2 := line.B.Sub(line.A).Rotated(math32.Pi / 2).Unit().Scaled(5).Add(line.A)
+	pt3 := line.B.Sub(line.A).Rotated(-math32.Pi).Unit().Scaled(5).Add(line.A)
 
 	from := hand.A
 	to := hand.B.Sub(from)
@@ -104,13 +103,13 @@ func drawHand(lcd drivers.Displayer, hand Line, scale float32, color color.RGBA)
 
 	// make the hand as a triangle. this takes the from-point of the hand and
 	// moves it out 5 pixels each way
-	tinydraw.FilledTriangle(lcd, int16(line.A.X), int16(line.A.Y),
+	tinydraw.FilledTriangle(lcd, int16(pt3.X), int16(pt3.Y),
 		int16(line.B.X), int16(line.B.Y), int16(pt.X), int16(pt.Y), color)
 
 	color.R = uint8(float32(color.R) * .75)
 	color.G = uint8(float32(color.G) * .75)
 	color.B = uint8(float32(color.B) * .75)
 
-	tinydraw.FilledTriangle(lcd, int16(line.A.X), int16(line.A.Y),
+	tinydraw.FilledTriangle(lcd, int16(pt3.X), int16(pt3.Y),
 		int16(line.B.X), int16(line.B.Y), int16(pt2.X), int16(pt2.Y), color)
 }

@@ -48,6 +48,7 @@ func run() error {
 	spiral := &spiral{}
 	everyMin := time.Unix(0, 0)
 	everySec := time.Unix(0, 0)
+	wasSleeping := true
 
 	var minHand, hourHand Line
 	now := time.Now()
@@ -105,9 +106,11 @@ func run() error {
 		// Check for movement / sleep
 		//
 		if mcu.Sleeping() {
+			wasSleeping = true
 			time.Sleep(500 * time.Millisecond)
 			continue
-		} else {
+		} else if wasSleeping {
+			wasSleeping = false
 			min = minSinceMidnight(now)
 			t = timedata[min]
 			im = t.imaginary
@@ -143,8 +146,8 @@ func run() error {
 		spiral.draw(mcu, mi)
 
 		if timeSet {
-			drawHand(mcu, minHand, .9, colornames.Orange)
 			drawHand(mcu, hourHand, .6, colornames.Red)
+			drawHand(mcu, minHand, .9, colornames.Orange)
 		}
 
 		mcu.DrawBattery()
@@ -153,3 +156,8 @@ func run() error {
 		im += .004
 	}
 }
+
+/*
+
+Applying securities regulation to
+*/
