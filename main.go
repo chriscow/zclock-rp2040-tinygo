@@ -156,8 +156,3 @@ func run() error {
 		im += .004
 	}
 }
-
-/*
-
-Applying securities regulation to
-*/
